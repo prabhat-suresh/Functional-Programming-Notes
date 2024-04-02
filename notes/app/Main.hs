@@ -299,8 +299,8 @@ type Table = [Row]
 --  overloading rather. examples like (+)
 --  equality cannot be parametrically polymorphic
 
-class MyEq a where
-  (==) :: a -> a -> Bool
+-- class MyEq a where
+--   (==) :: a -> a -> Bool
 
 --   creates a class in the world of types
 --   an instance of this class can be created as:
@@ -312,7 +312,8 @@ instance MyEq Bool where
 
 --  :type (==)          :: MyEq a => a->a->Bool
 --  here the type is of the form:      constraints => tau
---        it's now possible to write foo x y = if x == y then "equal" else "not equal"
+--        it's now possible to write
+foo x y = if x Main.== y then "equal" else "not equal"
 
 --        foo :: MyEq a => a->a->string (haskell figures out the type)
 
@@ -329,10 +330,10 @@ instance (MyEq a) => MyEq [a] where
 -- ___
 --  2024-02-23 10:13
 --  default definitions:
--- class MyEq a where
---   (==) :: a->a->Bool
---   (/=) :: a->a->Bool
---   (/=) x y = not (x==y)      -- default definition of not equal to applies, unless specifically defined as an instance
+class MyEq a where
+  (==) :: a -> a -> Bool
+  (/=) :: a -> a -> Bool
+  (/=) x y = not (x Main.== y) -- default definition of not equal to applies, unless specifically defined as an instance
 
 --  Hash consing
 --  Hash is a type
@@ -380,6 +381,7 @@ partition (x : xs) pr =
   let (l, r) = partition xs pr
    in if pr x then (x : l, r) else (l, x : r)
 
+-- Quick sort
 sort [] = []
 sort (x : xs) = sort l ++ (x : sort r) where (l, r) = partition xs (Main.<= x)
 
@@ -389,7 +391,7 @@ instance MyEq Int where
 instance MyOrd Int where
   (<=) = (Prelude.<=)
 
-main = print (sort [2 :: Int, 5, 3, 7, 4, 9, 8, 1, 0])
+-- main = print (sort [2 :: Int, 5, 3, 7, 4, 9, 8, 1, 0])
 
 -- ___
 
@@ -397,23 +399,22 @@ main = print (sort [2 :: Int, 5, 3, 7, 4, 9, 8, 1, 0])
 
 --  ord should give a total order (x <= y or (inclusive) y<=x) (divisibility is an example of a partial order that's not a total order)
 data Day = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
-
--- deriving (Enum)
-
---  For Eq instance we would have to write 7 lines
---  For Ord it will take n^2 lines
---  A hack will be to write a function from Day to Int and use the MyOrd of Int and n lines of pattern matching
---  There is a class Enum in the standard library
---  An easier way is by using the deriving feature
+  --  For Eq instance we would have to write 7 lines
+  --  For Ord it will take n^2 lines
+  --  A hack will be to write a function from Day to Int and use the MyOrd of Int and n lines of pattern matching
+  --  There is a class Enum in the standard library
+  --  An easier way is by using the deriving feature
+  deriving (Enum)
 
 -- data Foo
 --   = Bar String
 --   | Biz Int
 --   deriving (Eq, Ord, Enum)
 
--- (make sure to add MyEq even if using just MyOrd as MyEq is required by MyOrd)
+-- (make sure to add Eq even if using just Ord as Eq is required by Ord)
 
 --  Ordering will be according to the order of declaration of constructors i.e., Bar _ always <= Biz _
+
 -- Not sure about the above -  deriving Enum for Foo shows error
 
 newtype Foo a = Foo a
@@ -443,7 +444,7 @@ class MyFunctor t where -- (t is the functor here)
 
 instance MyFunctor [] where -- (indentation is important)
 -- fmap :: (a -> b) -> [a] -> [b] -- (as [] a = [a])
-  fmap = map
+  fmap = mymap
 
 instance MyFunctor Maybe where
   -- fmap :: (a -> b) -> Maybe a -> Maybe b
@@ -469,95 +470,120 @@ instance MyFunctor BinTree where
 --  type of i/o actions that result in a value of type a
 --     getLine :: IO String
 --     read :: Read a => String -> a
+-- these are included in the Prelude
 
---  (read "123" :: Int)   Type has to be mentioned to give Int
+oneTwentyThree = read "123" :: Int -- Type annotation is required to give Int
 --  write function getIntLine :: IO Int
---       foo=fmap read           foo:: (Read a, Functor t) => t string -> t a
---       getIntLine = foo getLine      (as getLine guarantees IO functor)
 
---  newtype is generally preferred over data if there is only a single constructor
---        newtype Person=Person String instead of
---        data    Person=Person String
+fooo = Prelude.fmap read -- fooo:: (Read a, Functor t) => t String -> t a
+
+getIntLine :: IO Int
+getIntLine = fooo getLine -- (as getLine guarantees IO functor)
+
+--  newtype is generally preferred over data if there is only a single constructor and single field for that constructor
+newtype Person1 = Person1 String
+
+--  instead of
+--        data Person=Person String
 
 --   write getPersonLine :: IO Person
---         getPersonLine=fmap Person getLine
+getPersonLine :: IO Person1
+getPersonLine = Prelude.fmap Person1 getLine
 
 -- ___
 --  2024-03-06 10:03
 
 --  Applicative
---    data Person = Person String Int          (Person :: String -> Int -> Person)
---    get = fmap Person getLine
+data Person = Person String Int -- Person :: String -> Int -> Person
+
+-- get = fmap Person getLine
 --    get :: IO (Int -> Person)
 
 --    cannot apply the function (a->b) on a as it is hidden in t a and cannot be accessed as it is
 
---  class Functor t => Applicative t where
---     extends functors to multiple arguments
---  pure :: a -> t a       (zero side effect is also a side effect)
---  (<>):: t (a->b) -> t a -> t b
---  get = fmap Person getLine <> getIntLine
+class (MyFunctor t) => MyApplicative t where
+  --     extends functors to multiple arguments
+  pure :: a -> t a --    (zero side effect is also a side effect)
+
+  (<*>) :: t (a -> b) -> t a -> t b
+
+-- get = fmap Person getLine <*> getIntLine
+-- get :: IO Person
+
 --       add3 :: Int -> Int -> Int -> Int
 --       add3 x y z = x+y+z
 
---       get = fmap add3 getIntLine <> getIntLine <> getIntLine
+--       get = fmap add3 getIntLine <*> getIntLine <*> getIntLine
 
 --  use <$> to make code clearer and make it look just like function application
---        f <$> (t x) = fmap f (t x)
---        now get will be = Person <$> getLine <> getIntLine
+--        f <$> functorClass= fmap f functorClass
+--        now get will be
+getPerson = Person <$> getLine Prelude.<*> getIntLine
 
---  think about the following:
---    instance Applicative Maybe where
---         pure =  Just
---         <> (Just f) (Just x) = Just (f x)
---         <> _ _ = Nothing
+instance MyApplicative Maybe where
+  pure = Just -- as to produce Maybe, best is to apply Just as:      pure x = Just x
+  (<*>) (Just f) (Just x) = Just (f x)
+  (<*>) _ _ = Nothing
+
 -- ___
 --  2024-03-08 10:06
 
---  data Exp = C Int | PLUS Exp | PLUS Exp
+data Exp = C Int | PLUS Exp Exp | DIV Exp Exp
+
 --  eval :: Exp -> (Maybe Int)
---     eval (C x) = Just x
---     eval (PLUS e1 e2) = case eval e1 of
---                               Just x -> case eval e2 of
---                                         Just y -> Just (x+y)
---                                         Nothing -> Nothing
---                               Nothing -> Nothing
+eval (C x) = Just x
+-- eval (PLUS e1 e2) = case eval e1 of
+--   Just x -> case eval e2 of
+--     Just y -> Just (x+y)
+--     Nothing -> Nothing
+--   Nothing -> Nothing
 
---     eval (DIV e1 e2) =
+eval (DIV e1 e2) = case eval e1 of
+  Just x -> case eval e2 of
+    Just (0) -> Nothing
+    Just y -> Just (x + y)
+    Nothing -> Nothing
+  Nothing -> Nothing
 --      can be written much more succinctly using the Applicative
+eval (PLUS e1 e2) = (+) <$> eval e1 Prelude.<*> eval e2
 
---         f <$> ma = pure f <> ma
+-- functor can be written in terms of applicative
+--         f <$> ma = pure f <*> ma
 
---         eval (PLUS e1 e2) = (+) <$> (eval e1) (eval e2)
+instance MyApplicative [] where
+  --  pure :: a -> [a]
+  pure x = [x]
 
---  instance Applicative [] where
---  pure :: a -> [a]
---   pure x = [x]
---  (<>) :: [a->b] -> [a] -> [b]
+  --  (<*>) :: [a->b] -> [a] -> [b]
 
---  fs <> xs = [f x | f <- fs, x -> xs]
+  fs <*> xs = [f x | f <- fs, x <- xs]
 
 -- ___
 --  2024-03-11 10:14
 
 --   as we can't have two instances of an Applicative, Functor etc, we have to define a new type to have an Applicative for Ziplist operation
---  newtype Ziplist a = Ziplist [a]
---  instance Functor Ziplist where
---  fmap :: (a->b) -> Ziplist a -> Ziplist b
---  fmap f (Ziplist someList) = Ziplist (map f someList)
---  instance Applicative Ziplist where
---  (<>) :: Ziplist (a->b) -> Ziplist a -> Ziplist b
---  (<>) (Ziplist fs) (Ziplist xs) = Ziplist (zipWith ($) fs xs)
---  pure :: a-> Ziplist a
---  pure x = Ziplist xs where xs = x:xs
+newtype Ziplist a = Ziplist [a]
+
+instance MyFunctor Ziplist where
+  --  fmap :: (a->b) -> Ziplist a -> Ziplist b
+  fmap f (Ziplist someList) = Ziplist (map f someList)
+
+instance MyApplicative Ziplist where
+  --  (<*>) :: Ziplist (a->b) -> Ziplist a -> Ziplist b
+  (<*>) (Ziplist fs) (Ziplist xs) = Ziplist (zipWith ($) fs xs)
+
+  --  pure :: a-> Ziplist a
+  pure x = Ziplist xs where xs = x : xs
+
 --  pure has to give an infinite list as if we define pure x = Ziplist [x] then whenever we zip with it the result will be trimmed down to a single element
 -- ___
 --  2024-03-13 10:06
+
 --  Overview
 --  Functor - Applying pure functions "inside" the data structure
 --     map operator (<$>) :: (a->b) -> t a -> t b
 --  Applicative / Monoidal Functors - Extending Functor interface for "multi-argument" function
---     apply operator (<>) :: t (a->b) -> t a -> t b
+--     apply operator (<*>) :: t (a->b) -> t a -> t b
 --  Monad
 --     bind operator (>>=) :: t a -> (a -> t b) -> t b
 --  (1) Read an int, read a string,...
@@ -565,54 +591,62 @@ instance MyFunctor BinTree where
 --      notice the dependency in sequencing on previous actions. This is not captured by the applicative as it assumes no dependency
 --      and can compute t (a->b) and t a in parallel
 
---  class Applicative t => Monad t where
---    return :: a -> t a       (legacy stuff and can be ignored; is exactly same as pure)
---    (>>=) :: t a -> (a -> t b) -> t b
+class (MyApplicative t) => MyMonad t where
+  --    return :: a -> t a       (legacy stuff and can be ignored; is exactly same as pure)
+  (>>=) :: t a -> (a -> t b) -> t b
 
---    (>>) :: ta -> tb -> tb
+--    (>>) :: t a -> t b -> t b
 --    (>>) ta tb = (>>=) ta (_ -> tb)
 
 --    historically they realised that the apply operator can be written in terms of the bind operator
-
---    (<>) tf ta = tf >>= (f -> ta >>= (x -> pure (f x)))
+--    (<*>) tf ta = tf >>= (\f -> ta >>= (\x -> pure (f x)))
 
 --  The do-notation       to make it more readable
 --  stmt = do action; stmt       equivalent to  action >> stmt
 --  | do x <- action; stmt       equivalent to action >>= (x -> stmt)
 --  | action                     equivalent to action
+
 --      can rewrite apply operator as
---      (<>) tf ta = do f <- tf
+--      (<*>) tf ta = do f <- tf
 --                       x <- ta
 --                       return (f x)
 -- ___
---  2024-03-15 10:06
---  print :: Show a => a -> IO()
---  class Show a where
---     show :: a -> string
 
---  given putStr :: string -> IO()
---     print x = putStr ( show x)
+--  2024-03-15 10:06
+--  print :: Show a => a -> IO ()
+--  Show class in the standard library
+-- class Show a where
+--   show :: a -> string
+
+--  given putStr :: string -> IO ()
+myprint x = putStr (show x)
+
 --     print = putStr . show
+
+-- main = myprint "Hello World"
 
 --  getLine :: IO string
 --      get :: Read a => IO a
---      get = fmap read getLine
---      get = read <$> getLine
+-- get = fmap read getLine
+get = read <$> getLine
 
+--  Read class in the std library
 --  class Read a where
 --       read :: String -> a
 
 --  a simple program which has an imperative programming feel using monads
---     do putStr "Enter an integer: "
---         inp <- get
---         print (inp + 1)
+-- main = do
+--   print "Enter an integer: "
+--   inp <- get
+--   print (inp + 1)
 
 --  infinite program to keep printing the squares of input
 
---    sq_input = (do putStr "Enter an integer: "
---         inp <- get
---         print (inp  inp)
---         sq_input)
+main = do
+  print "Enter an integer: "
+  inp <- get
+  print (inp * inp)
+  main
 
 --  haskell programs only execute the main function
 --  for all IO, the main function is sufficient and the Haskell compiler evaluates the main function (that is the plan!)
@@ -622,61 +656,67 @@ instance MyFunctor BinTree where
 
 --    return :: Monad a => a -> m a
 
---    main = do x <- getLine
---              y <- getLine
---             return (x ++ y)
+-- main = do
+--   x <- getLine
+--   y <- getLine
+--   return (x ++ y)
 
---    foo = getLine      (a plan that hasn't been executed; only the main plan )
+--    foo = getLine      (a plan that hasn't been executed; only the main plan gets executed)
 --    main = do x <- getLine
 --              y <- getLine
---             return (x ++ y)
+--              return (x ++ y)
 
 --    foo = getLine
 --    main = do x <- foo
 --              y <- getLine
---             return (x ++ y)
+--              return (x ++ y)
 
 --    foo = getLine
 --    main = do x <- foo
 --           y <- foo
 --           return (x ++ y)
---  better way to write (using applicative):  main = (++) <$> getLine <> getLine
+--  better way to write (using applicative):  main = (++) <$> getLine <*> getLine
 
 -- ___
 --  2024-03-20 10:03
---    instance Monad Maybe where
+instance MyMonad Maybe where
+  --      do x <- foo
+  --         something
 
---      do x <- foo
---         something
+  --       same as foo >>= \x -> something
 
---       same as foo >>= x -> something
-
---      (>>=) Nothing something = Nothing
---      (>>=) Just x something = something x
+  (>>=) Nothing _ = Nothing
+  (>>=) (Just x) something = something x
 
 --  a simple variable calculator
---    data Exp v = Var v                                     (syntactic Monad)
---               | Const Int
---               | Plus (Exp v) (Exp v)
---               | Mul (Exp v) (Exp v)
+data Exp1 v
+  = Var v
+  | Const Int
+  | Plus (Exp1 v) (Exp1 v)
+  | Mul (Exp1 v) (Exp1 v)
 
---    instance Functor Exp where
+-- (syntactic Monad)
 
---    --fmap :: (v1 -> v2) -> Exp v1 -> Exp v2
---    fmap vt (Var x) = Var (vt x)                      (vt - variable translation)
---    fmap vt (Plus e1 e2) = Plus (fmap vt e1) (fmap vt e2)
---    fmap vt (Mul e1 e2) = Mul (fmap vt e1) (fmap vt e2)
---    fmap _ c = c
+instance MyFunctor Exp1 where
+  -- fmap :: (v1 -> v2) -> Exp v1 -> Exp v2
+  fmap vt (Var x) = Var (vt x) -- (vt - variable translation)
+  fmap vt (Plus e1 e2) = Plus (Main.fmap vt e1) (Main.fmap vt e2)
+  fmap vt (Mul e1 e2) = Mul (Main.fmap vt e1) (Main.fmap vt e2)
+  fmap _ (Const c) = Const c
 
 --  join :: Monad m => m (m a) -> m a
+
+-- join in terms of bind
 --  join mma = do ma <- mma
 --                   ma
+
+-- bind in terms of join
 --  (>>=) :: Monad m => (a -> mb) -> mb
 --     (>>=) m f = join (fmap f ma)
 
 --  so Monads instances can be defined either by defining join or bind
 
---       join :: Exp (Exp v) -> Exp v        more natural to define join for expressions
+--       join :: Exp (Exp v) -> Exp v        it's more natural to define join for expressions
 
 --       join (Const i) = Const i
 --       join (Var e) = e
@@ -685,6 +725,7 @@ instance MyFunctor BinTree where
 
 -- ___
 --  2024-03-22 10:01
+
 --  List Monad
 --    do x <- alist
 --       foo x
@@ -693,6 +734,9 @@ instance MyFunctor BinTree where
 --  alist :: [a]         foo :: a -> [b]
 --     read the do statement as for each element in the list do foo x and concatenate (collect) the result
 --  alist >>= foo = concat $ map foo alist
+
+instance MyMonad [] where
+  alist >>= foo = concatMap foo alist
 
 -- ___
 -- 2024-03-27 10:18:20
@@ -705,14 +749,16 @@ instance MyFunctor BinTree where
 -- Parser Combinator libraries
 -- Parsec, mega parsec, atto parsec
 
--- Have to parse the rest of the input and give parse error
+-- Have to parse the rest of the input and give parse error in case of error
 -- Result a - captures this idea
+
+data Result a = Ok a String | Err
 
 -- String -> Maybe (a,String) is more apt
 
-newtype Parser a = Parser (String -> Maybe (a, String))
+newtype Parser a = Parser (String -> Result a)
 
--- not good enough error msg. It just returns Nothing if
+-- not good enough error msg. It just returns Err
 
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy pr = Parser fn
@@ -720,15 +766,13 @@ satisfy pr = Parser fn
     -- fn :: String -> Maybe (Char, String)
     fn (x : xs) =
       if pr x
-        then Just (x, xs)
-        else Nothing
-    fn [] = Nothing
+        then Ok x xs
+        else Err
+    fn [] = Err
 
 -- digit = satisfy isDigit
 -- char :: Char -> Parser Char
--- char x = satisfy ( \c -> c = x)
-
--- type Result a = Maybe(a,String)
+char x = satisfy (Prelude.== x)
 
 -- runParser :: Parser a -> String -> Result a
 -- runParser (Parser fn) input = fn input
@@ -742,42 +786,47 @@ runParser (Parser fn) = fn
 p1 <|> p2 = Parser fn
   where
     fn input = case runParser p1 input of
-      Nothing -> runParser p2 input
+      Err -> runParser p2 input
       x -> x
 
--- many :: Parser a -> Parser [a]          it should parse regex a
+-- many :: Parser a -> Parser [a]          it should parse regex a*
 -- Do it urself
 
-data Result a = Ok a String | Err
-
-instance Functor Result where
+instance MyFunctor Result where
   fmap f (Ok a s) = Ok (f a) s
   fmap _ Err = Err
 
--- instance Functor Parser where
---   fmap :: (a->b) -> Parser a -> Parser b
+instance MyFunctor Parser where
+  --   fmap :: (a->b) -> Parser a -> Parser b
 
---   fmap f pa = Parser fn
---     where -- fn :: String -> Result b
---       fn input = fmap f (runParser pa input)
+  fmap f pa = Parser fn
+    where
+      -- fn :: String -> Result b
+      fn input = Main.fmap f (runParser pa input)
 
 -- 2024-04-01 21:35:10
--- instance Applicative Parser where
---   pure :: a-> Parser a
---   pure a = Parser (pfn :: String -> Result a)
---     where pfn str = Ok a str
--- pure parsing, without even looking at a -> always succeeds
+instance MyApplicative Parser where
+  --   pure :: a-> Parser a
+  pure a = Parser pfn -- (pfn :: String -> Result a)
+  -- where pfn str = Ok a str
+  -- or better
+    where
+      pfn = Ok a
 
--- (<*>) :: Parser (a->b) -> Parser a -> Parser b
+  -- pure parsing, without even looking at a or str -> always succeeds
 
--- pf <*> pa = Parser (pfnb :: String -> Result b)
---   where pfnb str = case runParser pf str of
---     Ok f rest -> fmap f (runParser pa rest)
---     Err -> Err
+  -- (<*>) :: Parser (a->b) -> Parser a -> Parser b
+
+  pf <*> pa = Parser pfnb -- (pfnb :: String -> Result b)
+    where
+      pfnb str = case runParser pf str of
+        Err -> Err
+        (Ok f rest) -> Main.fmap f (runParser pa rest)
 
 -- an application of above
 
-data Person = Person String Int
+-- recall the previously defined datatype
+-- data Person = Person String Int
 
 -- Person datatype with Name and age
 
@@ -794,8 +843,9 @@ data Person = Person String Int
 
 -- -- string and list of char are the same
 
--- many1 p = (:) <$> p <*> manyp
--- manyp p = many1 p <|> pure []
+many1 p = Main.fmap (:) p Main.<*> manyp p
+
+manyp p = many1 p <|> Main.pure []
 
 -- --elegant mutually recursive definitions
 -- -- base case comes from the parser of p in many1
