@@ -763,7 +763,7 @@ newtype Parser a = Parser (String -> Result a)
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy pr = Parser fn
   where
-    -- fn :: String -> Maybe (Char, String)
+    -- fn :: String -> Result Char
     fn (x : xs) =
       if pr x
         then Ok x xs
@@ -849,3 +849,126 @@ manyp p = many1 p <|> Main.pure []
 
 -- --elegant mutually recursive definitions
 -- -- base case comes from the parser of p in many1
+
+-- instance MyMonad Parser where
+-- (>>=) :: Parser a -> (a->Parser b) -> Parser b
+-- (>>=) ?
+
+-- S -> aSa | bSb | e
+data S
+  = RuleA Char S Char
+  | RuleB Char S Char
+  | RuleE
+
+-- parser for this datatype
+-- sp=RuleA <$> char 'a' Main.<*> sp Main.<*> char 'a'
+--   <|> RuleA <$> char 'a' Main.<*> sp Main.<*> char 'a'
+--   <|> Main.pure RuleE
+
+-- parse n and then n 'a's
+
+-- do
+--   x <- parseInt
+--   repeat x Parse Char
+
+-- repeat x action = if x<=0 then
+-- pending notes
+
+-- type String = [Char]
+
+-- (1) Text
+-- (2) Bytestring
+--   Lazy Bytestring
+--   Strict Bytestring
+
+-- Stateful Computation
+
+newtype State s a = State {runState :: s -> (a, s)}
+
+-- is equivalent to:
+-- newtype State s a = State ( s-> (a,s))
+-- runState (State fn) = fn
+
+instance MyFunctor (State s) where
+  -- State is not a one parameter function, State s is
+  -- fmap :: (a->b) -> State s a -> State s b
+  fmap f sa = State fn -- :: s-> (b,s)
+    where
+      fn s0 = (f a, s1)
+        where
+          (a, s1) = runState sa s0
+
+instance MyApplicative (State s)
+
+-- (<*>) :: State s (a->b) -> State s a -> State s b
+
+instance MyMonad (State s) where
+  -- (>>=) :: State s a -> (a -> State b) -> State s b
+  (>>=) sa fn = State g -- :: State s b
+    where
+      g s0 = runState (fn a) s1
+        where
+          (a, s1) = runState sa s0
+
+-- s0 to s1 transition produces an a which is then used to transition from s1 to s2
+
+-- get :: State s s
+-- as it gives out the result as the same state whcih it gets
+getstate = State fn
+  where
+    fn s0 = (s0, s0)
+
+-- similarly put :: s -> State s ()
+
+-- 2024-04-12 11:10:00
+
+-- Monad transformation
+-- StateT s m a where s id the state type, m is the inner monad and a is the value
+-- for all monads m, StateT s m is a monad
+
+-- type CalcM = StateT Env IO
+
+newtype StateT s m a = StateT {runStateT :: s -> m (a, s)}
+
+-- similar to state except that it's wrapped in the monad
+-- instead of ending up defining the same type of function definitions for StateT as for State
+-- define StateT and identity monad and State is defined using thes two to avoid redundancy
+
+newtype Identity a = Identity {runIdentity :: a}
+
+-- define functor, applicative and monad instnaces for the identity monad
+
+-- type State s a = StateT s Identity
+
+instance (Functor m) => Functor (StateT s m) where
+  -- fmap :: (a->b) -> StateT s m a -> StateT s m b
+  fmap f sma = StateT fn
+    where
+      fn s0 = Prelude.fmap (\(a, s) -> (f a, s)) (runStateT sma s0)
+
+instance (Monad m) => Applicative (StateT s m) where
+  -- pure :: a -> StateT s m a
+  pure a = StateT fn
+    where
+      fn s0 = Prelude.pure (a, s0)
+
+  -- (<*>) :: StateT s m (a->b) -> StateT s m a -> StateT s m b
+  (<*>) smf sma = StateT fn
+    where
+      fn s0 =
+        do
+          (f, s1) <- runStateT smf s0
+          (a, s2) <- runStateT sma s1
+          return (f a, s2)
+
+instance (Monad m) => Monad (StateT s m) where
+  -- (>>=) :: StateT s m a -> (a -> StateT s m b) -> StateT s m b
+  (>>=) sma f = StateT fn
+    where
+      fn s0 =
+        do
+          (a, s1) <- runStateT sma s0
+          (b, s2) <- runStateT (f a) s1
+          return (b, s2)
+
+-- lift ::
