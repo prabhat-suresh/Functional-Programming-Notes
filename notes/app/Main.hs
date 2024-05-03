@@ -968,7 +968,169 @@ instance (Monad m) => Monad (StateT s m) where
       fn s0 =
         do
           (a, s1) <- runStateT sma s0
-          (b, s2) <- runStateT (f a) s1
-          return (b, s2)
+          runStateT (f a) s1
 
 -- lift ::
+
+-- Clash: a plugin to compile haskell directly to hardware.
+-- It uses GHC itself. As Lambda calculus is closest to hardware.
+
+-- Metapost (former Metafont by Knuth) for vector graphics
+
+-- 2024-04-17 10:06:36
+-- Module system in Haskell
+-- Namespacing: controlling name-value binding
+
+-- Haskell module system is simpler than that of OCaml/SML
+-- nesting of module is only indirect
+-- no "functor" parametric modules
+
+-- module is a collection of name-value bindings
+
+-- cannot have nultiple modules in a single file
+-- module names have to start with Uppercase
+
+-- module A (x,y) where
+-- type Bar = Int
+-- x=10
+-- y=100
+-- z=42
+
+-- nesting is done indirectly using heirarchical structure in the file system
+-- src/Foo.hs ---> module Foo where .....
+-- src/Foo/Bar.hs ---> module Foo.Bar where .....
+
+-- values can be accessed by A.x, A.y , etc
+
+-- z is not accessible as A doesn't export z
+
+-- module B where
+-- import A
+-- now it's as if x,y are available as it is (not A.x or A.y but just x,y)
+
+-- Binary search tree
+-- module Tree
+-- (
+--   Tree                   -- if mentioned as Tree (Empty), additionally apart from the datatype the Empty constructor is also exposed.
+--   ,empty
+--   ,singleton
+--   ,search
+--   ,insert
+-- ) where
+-- data Tree a = Empty
+--             | Node (Tree a) a (Tree a)
+-- empty :: Tree a
+-- empty = Empty
+-- This avoids the above mentioned method of exposing the constructor and now pattern matching is not possible and still the using module can create an empty tree.
+-- singleton :: a -> Tree a
+-- singleton x = Node Empty x Empty
+
+-- to tackle SQL injection
+-- module SQL (QString, sanitize, toString)
+-- data Query = |
+-- \|
+-- \| ..
+-- \| QString
+-- \|
+
+-- newtype QString = QString string
+-- sanitize :: string -> QString
+-- toString :: QString -> string
+
+-- If you want to expose the QString constructor use QString(QString) inside export
+-- for a datatype to expose all constructors use datatypeName (...)
+
+
+--  import Foo.Bar (school of thought which says - never import things like this.
+--                  plausible that same name different meanings. context dependent name )
+--
+-- Example
+-- -------
+-- Data.List.singleton :: a -> [a]
+-- Data.Set.singleton :: a -> Set a
+-- ambiguity in which singleton is being used in a program 
+--
+--  import Foo.Bar ( <import list> )  <-- Further restriction from Foo.Bar's export list
+--                              <-- only whatever has been exported can be imported
+--                              <-- India can only import stuff which Pakistan exports, not anything more
+--                              <-- But India can place restrictions on their exports :-D
+--
+--  import Foo.Bar hiding(biz) <-- import everything but biz
+--  import qualififed Foo.Bar.Biz as FBB
+-- FBB.x means Foo.Bar.Biz.x (only way)
+--
+-- if not -> two ways , Foo.Bar.Biz.x is also imported? (Not sure)
+--
+--
+
+
+-- main :: IO ()
+-- main = putStrLn "Hello, Haskell!"
+
+
+-- Watch the Matrix movie or you get a U grade
+-- Watch Matrix 2 or 3 then you get a U grade again. 
+
+--module Foo (x) where
+--  import Bar      -> (Bar.x) (Bar.y) are present 
+--
+--
+--
+--  Foo can export things which were already imported from another module, say Bar
+--  Basically re-export variables from different modules
+--
+--
+--  module Foo (module Bar)   -> the entire set of variables is exported from Bar
+-- import Bar(x)   -> only x will be exposed from here
+--
+--
+--
+--  Next Class:
+--  How type classes behave under module export and import??
+--  Conflict between type classes (figuring out implicit parameters) and modules (controlling locality)
+--  Fundamental tension between them both in terms of modularity.
+--
+
+-- 2024-04-22 10:52:05
+
+-- interaction of modules with type classes 
+-- Module is about locality
+-- Type classes want to globalize
+
+-- Type class coherence problem 
+
+-- Type class instances should be global for coherence but bindings have to be local. The two of them are conflicting in nature.
+
+-- Suppose Modules are allowed to control exposure of type classes then it will result in incoherence
+
+-- module A (foo)
+--   instance Ord int 
+--   foo x y = x <= y
+--   bar = foo 2 3
+
+-- module B 
+--   A.foo 2 3
+
+-- in B the local instance of Ord will be used and could lose coherence 
+
+-- Orphan instances: an instance is not orphan if the instance is defined in either the type class is defined or where the type is defined. 
+-- All other instances are orphan instances. 
+
+-- Orphan instances leads to coherence problems at runtime and compiler warns about it
+-- There are some instances when you don't have control over the libraries and have to import it and write an orphan instance
+-- which is why it's a warning and not an error.
+
+-- 2024-04-24 10:25:26
+-- Modules locality vs type classes need for coherence (global)
+
+-- mixing style module system (backpack)
+-- Dependent types in Haskell       a -> b
+-- Linear types f: a --o b (lollipop operator) (linear logic: the logic of resources)
+-- a is used/consumed in the operation and can be used only once
+
+-- more important is Dependent types
+-- what if we make types first-class just like functions?
+
+-- functions from type to type, for eg. List : Type -> Type
+-- functions from values to types, eg. Vector : Type -> Nat -> Type, A : Nat -> Type
+-- A 0: Type , A 1: Type .....
