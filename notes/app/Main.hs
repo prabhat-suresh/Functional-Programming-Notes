@@ -1,38 +1,48 @@
 module Main where
 
-main :: IO ()
+import GHC.Real (infinity)
 
+main :: IO ()
 -- main = putStrLn "Hello, Haskell!"
 
+fst :: (a, b) -> a
 fst (x1, _) = x1 -- wildcard
 
+len :: (Num a1) => [a2] -> a1
 len [] = 0
 len (_ : xs) = 1 + len xs
 
+mysum :: (Num a) => [a] -> a
 mysum [] = 0
 mysum (x : xs) = x + mysum xs
 
+isEmpty :: [a] -> Bool
 isEmpty [] = True
 isEmpty _ = False
 
+mytake :: (Ord t, Num t) => t -> [a] -> [a]
 mytake _ [] = []
 mytake num (x : xs) =
   if num > 0
     then x : mytake (num - 1) xs
     else []
 
+mymap :: (t -> a) -> [t] -> [a]
 mymap f [] = []
 mymap f (x : xs) = f x : mymap f xs
 
 -- f :: s -> a -> s
+myfoldl :: (t1 -> t2 -> t1) -> t1 -> [t2] -> t1
 myfoldl f summ [] = summ
 myfoldl f summ (x : xs) = myfoldl f (f summ x) xs
 
 -- f :: a -> s -> s
+myfoldr :: (t1 -> t2 -> t2) -> t2 -> [t1] -> t2
 myfoldr f summ [] = summ
 myfoldr f summ (x : xs) = f x (myfoldr f summ xs)
 
 -- zipWith :: (a->b->c) -> [a] -> [b] -> [c]
+myzipWith :: (t1 -> t2 -> a) -> [t1] -> [t2] -> [a]
 myzipWith f (x : xs) (y : ys) = f x y : myzipWith f xs ys
 myzipWith _ _ _ = []
 
@@ -40,18 +50,23 @@ data BinTree a
   = Empty
   | Node (BinTree a) a (BinTree a)
 
+sampleTree :: BinTree Rational
 sampleTree = Node (Node (Node Empty 4 Empty) 2 (Node Empty 5 Empty)) 1 (Node (Node Empty 6 Empty) 3 (Node Empty 7 Empty))
 
+zeroes :: [Integer]
 zeroes = 0 : zeroes
 
 -- main = print zeroes
 
+isEmptyTree :: BinTree a -> Bool
 isEmptyTree Empty = True
 isEmptyTree _ = False
 
+inorder :: BinTree a -> [a]
 inorder Empty = []
 inorder (Node left root right) = inorder left ++ (root : inorder right)
 
+inorderHelper :: BinTree a -> [a] -> [a]
 inorderHelper Empty ls = ls
 inorderHelper (Node left root right) ls = inorderHelper left (root : inorderHelper right ls)
 
@@ -184,14 +199,17 @@ rotateAC whateverElse = whateverElse
 -- ___
 -- 2024-02-09 10:02
 
+myZipWith :: (t1 -> t2 -> a) -> [t1] -> [t2] -> [a]
 myZipWith f (x : xs) (y : ys) = f x y : myZipWith f xs ys
 myZipWith _ _ _ = []
 
 tl :: [a] -> [a]
 tl (x : xs) = xs
 
+fib :: [Integer]
 fib = 1 : 1 : zipWith (+) fib (tl fib)
 
+firstN :: (Ord t, Num t) => t -> [a] -> [a]
 firstN _ [] = []
 firstN n (x : xs) =
   if n > 0
@@ -206,16 +224,21 @@ firstN n (x : xs) =
 --   [2,3,5,8,...]     (tl (tl fib))
 
 --  Sieve
+primes :: [Integer]
 primes = sieve [2 ..]
 
+sieve :: (Ord a, Enum a, Num a) => [a] -> [a]
 sieve (x : xs) = x : sieve (strikeoff x xs)
 
 -- strikeoff x xs = remove (multiples x) xs
 -- or better:
+strikeoff :: (Ord a, Enum a, Num a) => a -> [a] -> [a]
 strikeoff x = remove (multiples x)
 
+multiples :: (Enum a, Num a) => a -> [a]
 multiples x = [k * x | k <- [2 ..]]
 
+remove :: (Ord a) => [a] -> [a] -> [a]
 remove rm@(r : rs) f@(y : ys)
   | y > r = remove rs f
   | y Prelude.== r = remove rs ys
@@ -262,7 +285,7 @@ type Table = [Row]
 --  2024-02-14 10:11
 --  foldl vs foldr
 --  In eagerly evaluated languages foldl will be more efficient than foldr due to tail call optimization.
---  but in lazy evaluated ones the computation anyway will be deferred by using data structure called thunks (which have a pointer to a computation). What is not stored in the heap for recursion (haskell, SML, etc don't use stack for receursion) will be used for evaluation.
+--  but in lazy evaluated ones the computation anyway will be deferred by using data structure called thunks (which have a pointer to a computation). What is not stored in the heap for recursion (haskell, SML, etc don't use stack for recursion) will be used for evaluation.
 --  use stricter version of foldl for most purposes
 
 --  Algebraic datatypes
@@ -283,6 +306,18 @@ type Table = [Row]
 
 --  2024-02-19 10:35
 --  Question: convert a binary tree into another one with all node values replaced with minimum value in one pass
+
+helper :: BinTree Rational -> a -> (BinTree a, Rational)
+helper Empty _ = (Empty, -infinity)
+helper (Node l x r) v =
+  let (left, lmax) = helper l v
+   in let (right, rmax) = helper r v
+       in (Node left v right, max x (max rmax lmax))
+
+maxbintree :: BinTree Rational -> BinTree Rational
+maxbintree b = let (bt, maxval) = helper b maxval in bt
+
+main = print (inorder (maxbintree sampleTree))
 
 --  data Maybe a = Just a | Nothing
 
@@ -306,6 +341,7 @@ type Table = [Row]
 --   an instance of this class can be created as:
 
 instance MyEq Bool where
+  (==) :: Bool -> Bool -> Bool
   (==) True True = True
   (==) False False = True
   (==) _ _ = False
@@ -313,6 +349,7 @@ instance MyEq Bool where
 --  :type (==)          :: MyEq a => a->a->Bool
 --  here the type is of the form:      constraints => tau
 --        it's now possible to write
+foo :: (MyEq a) => a -> a -> String
 foo x y = if x Main.== y then "equal" else "not equal"
 
 --        foo :: MyEq a => a->a->string (haskell figures out the type)
@@ -355,18 +392,19 @@ class (MyEq a) => MyOrd a where -- (mentioning at the class level itself that th
   (<=) :: a -> a -> Bool
 
 instance MyOrd Bool where
+  (<=) :: Bool -> Bool -> Bool
   (<=) True False = False
   (<=) _ _ = True
 
 instance (MyOrd a, MyOrd b) => MyOrd (a, b) where
+  (<=) :: (MyOrd a, MyOrd b) => (a, b) -> (a, b) -> Bool
   (<=) (x1, y1) (x2, y2)
     | x1 Main.== x2 = y1 Main.<= y2
     | x1 Main.<= x2 = True
     | otherwise = False
 
---    type inferred will be :: (MyOrd a,MyOrd b) => (a,b) -> (a,b) ->Bool
-
 instance (MyOrd a) => MyOrd [a] where
+  (<=) :: (MyOrd a) => [a] -> [a] -> Bool
   (<=) (x : xs) (y : ys)
     | x Main.== y = xs Main.<= ys
     | x Main.<= y = True
@@ -375,12 +413,11 @@ instance (MyOrd a) => MyOrd [a] where
   (<=) _ _ = True
 
 sort :: (MyOrd a) => [a] -> [a]
-
+partition :: [a] -> (a -> Bool) -> ([a], [a])
 partition [] _ = ([], [])
 partition (x : xs) pr =
   let (l, r) = partition xs pr
    in if pr x then (x : l, r) else (l, x : r)
-
 -- Quick sort
 sort [] = []
 sort (x : xs) = sort l ++ (x : sort r) where (l, r) = partition xs (Main.<= x)
@@ -443,11 +480,11 @@ class MyFunctor t where -- (t is the functor here)
 --      [] Int = [Int]
 
 instance MyFunctor [] where -- (indentation is important)
--- fmap :: (a -> b) -> [a] -> [b] -- (as [] a = [a])
+  fmap :: (a -> b) -> [a] -> [b] -- (as [] a = [a])
   fmap = mymap
 
 instance MyFunctor Maybe where
-  -- fmap :: (a -> b) -> Maybe a -> Maybe b
+  fmap :: (a -> b) -> Maybe a -> Maybe b
   fmap f (Just x) = Just (f x) -- (or can write it as:   Just $ f a  where ($) :: (a -> b) -> a -> b)
   fmap _ Nothing = Nothing
 
@@ -472,6 +509,7 @@ instance MyFunctor BinTree where
 --     read :: Read a => String -> a
 -- these are included in the Prelude
 
+oneTwentyThree :: Int
 oneTwentyThree = read "123" :: Int -- Type annotation is required to give Int
 --  write function getIntLine :: IO Int
 
@@ -521,7 +559,10 @@ class (MyFunctor t) => MyApplicative t where
 getPerson = Person <$> getLine Prelude.<*> getIntLine
 
 instance MyApplicative Maybe where
-  pure = Just -- as to produce Maybe, best is to apply Just as:      pure x = Just x
+  pure :: a -> Maybe a
+  pure = Just -- as to produce Maybe, best is to apply Just as:      pure x = Just x  (<*>) :: Maybe (a -> b) -> Maybe a -> Maybe b
+
+  (<*>) :: Maybe (a -> b) -> Maybe a -> Maybe b
   (<*>) (Just f) (Just x) = Just (f x)
   (<*>) _ _ = Nothing
 
@@ -530,7 +571,7 @@ instance MyApplicative Maybe where
 
 data Exp = C Int | PLUS Exp Exp | DIV Exp Exp
 
---  eval :: Exp -> (Maybe Int)
+eval :: Exp -> Maybe Int
 eval (C x) = Just x
 -- eval (PLUS e1 e2) = case eval e1 of
 --   Just x -> case eval e2 of
@@ -551,11 +592,10 @@ eval (PLUS e1 e2) = (+) <$> eval e1 Prelude.<*> eval e2
 --         f <$> ma = pure f <*> ma
 
 instance MyApplicative [] where
-  --  pure :: a -> [a]
+  pure :: a -> [a]
   pure x = [x]
 
-  --  (<*>) :: [a->b] -> [a] -> [b]
-
+  (<*>) :: [a -> b] -> [a] -> [b]
   fs <*> xs = [f x | f <- fs, x <- xs]
 
 -- ___
@@ -565,14 +605,14 @@ instance MyApplicative [] where
 newtype Ziplist a = Ziplist [a]
 
 instance MyFunctor Ziplist where
-  --  fmap :: (a->b) -> Ziplist a -> Ziplist b
+  fmap :: (a -> b) -> Ziplist a -> Ziplist b
   fmap f (Ziplist someList) = Ziplist (map f someList)
 
 instance MyApplicative Ziplist where
-  --  (<*>) :: Ziplist (a->b) -> Ziplist a -> Ziplist b
+  (<*>) :: Ziplist (a -> b) -> Ziplist a -> Ziplist b
   (<*>) (Ziplist fs) (Ziplist xs) = Ziplist (zipWith ($) fs xs)
 
-  --  pure :: a-> Ziplist a
+  pure :: a -> Ziplist a
   pure x = Ziplist xs where xs = x : xs
 
 --  pure has to give an infinite list as if we define pure x = Ziplist [x] then whenever we zip with it the result will be trimmed down to a single element
@@ -599,7 +639,7 @@ class (MyApplicative t) => MyMonad t where
 --    (>>) ta tb = (>>=) ta (_ -> tb)
 
 --    historically they realised that the apply operator can be written in terms of the bind operator
---    (<*>) tf ta = tf >>= (\f -> ta >>= (\x -> pure (f x)))
+--    (<*>) tf ta = tf >>= (\f -> ta >>= (\a -> pure (f a)))
 
 --  The do-notation       to make it more readable
 --  stmt = do action; stmt       equivalent to  action >> stmt
@@ -608,8 +648,8 @@ class (MyApplicative t) => MyMonad t where
 
 --      can rewrite apply operator as
 --      (<*>) tf ta = do f <- tf
---                       x <- ta
---                       return (f x)
+--                       a <- ta
+--                       return (f a)
 -- ___
 
 --  2024-03-15 10:06
@@ -619,6 +659,7 @@ class (MyApplicative t) => MyMonad t where
 --   show :: a -> string
 
 --  given putStr :: string -> IO ()
+myprint :: (Show a) => a -> IO ()
 myprint x = putStr (show x)
 
 --     print = putStr . show
@@ -628,7 +669,7 @@ myprint x = putStr (show x)
 --  getLine :: IO string
 --      get :: Read a => IO a
 -- get = fmap read getLine
-get = read <$> getLine
+-- get = read <$> getLine
 
 --  Read class in the std library
 --  class Read a where
@@ -642,11 +683,11 @@ get = read <$> getLine
 
 --  infinite program to keep printing the squares of input
 
-main = do
-  print "Enter an integer: "
-  inp <- get
-  print (inp * inp)
-  main
+-- main = do
+--   print "Enter an integer: "
+--   inp <- get
+--   print (inp * inp)
+--   main
 
 --  haskell programs only execute the main function
 --  for all IO, the main function is sufficient and the Haskell compiler evaluates the main function (that is the plan!)
@@ -685,8 +726,9 @@ instance MyMonad Maybe where
 
   --       same as foo >>= \x -> something
 
+  (>>=) :: Maybe a -> (a -> Maybe b) -> Maybe b
   (>>=) Nothing _ = Nothing
-  (>>=) (Just x) something = something x
+  (>>=) (Just a) something = something a
 
 --  a simple variable calculator
 data Exp1 v
@@ -698,7 +740,7 @@ data Exp1 v
 -- (syntactic Monad)
 
 instance MyFunctor Exp1 where
-  -- fmap :: (v1 -> v2) -> Exp v1 -> Exp v2
+  fmap :: (a -> b) -> Exp1 a -> Exp1 b
   fmap vt (Var x) = Var (vt x) -- (vt - variable translation)
   fmap vt (Plus e1 e2) = Plus (Main.fmap vt e1) (Main.fmap vt e2)
   fmap vt (Mul e1 e2) = Mul (Main.fmap vt e1) (Main.fmap vt e2)
@@ -711,7 +753,7 @@ instance MyFunctor Exp1 where
 --                   ma
 
 -- bind in terms of join
---  (>>=) :: Monad m => (a -> mb) -> mb
+--  (>>=) :: Monad m => ma -> (a -> mb) -> mb
 --     (>>=) m f = join (fmap f ma)
 
 --  so Monads instances can be defined either by defining join or bind
@@ -736,6 +778,7 @@ instance MyFunctor Exp1 where
 --  alist >>= foo = concat $ map foo alist
 
 instance MyMonad [] where
+  (>>=) :: [a] -> (a -> [b]) -> [b]
   alist >>= foo = concatMap foo alist
 
 -- ___
@@ -764,6 +807,7 @@ satisfy :: (Char -> Bool) -> Parser Char
 satisfy pr = Parser fn
   where
     -- fn :: String -> Result Char
+    -- String :: [Char]
     fn (x : xs) =
       if pr x
         then Ok x xs
@@ -771,18 +815,19 @@ satisfy pr = Parser fn
     fn [] = Err
 
 -- digit = satisfy isDigit
--- char :: Char -> Parser Char
+char :: Char -> Parser Char
 char x = satisfy (Prelude.== x)
 
--- runParser :: Parser a -> String -> Result a
 -- runParser (Parser fn) input = fn input
 -- or better:
+runParser :: Parser a -> String -> Result a
 runParser (Parser fn) = fn
 
 -- (<|>) :: Parser a -> Parser a -> Parser a         (like or: try out the first one. If it fails try the second one)
 
 -- backtracking happens as it checks again on input (Recursive descent parsing)
 
+(<|>) :: Parser a -> Parser a -> Parser a
 p1 <|> p2 = Parser fn
   where
     fn input = case runParser p1 input of
@@ -793,12 +838,12 @@ p1 <|> p2 = Parser fn
 -- Do it urself
 
 instance MyFunctor Result where
+  fmap :: (a -> b) -> Result a -> Result b
   fmap f (Ok a s) = Ok (f a) s
   fmap _ Err = Err
 
 instance MyFunctor Parser where
-  --   fmap :: (a->b) -> Parser a -> Parser b
-
+  fmap :: (a -> b) -> Parser a -> Parser b
   fmap f pa = Parser fn
     where
       -- fn :: String -> Result b
@@ -806,7 +851,7 @@ instance MyFunctor Parser where
 
 -- 2024-04-01 21:35:10
 instance MyApplicative Parser where
-  --   pure :: a-> Parser a
+  pure :: a -> Parser a
   pure a = Parser pfn -- (pfn :: String -> Result a)
   -- where pfn str = Ok a str
   -- or better
@@ -862,7 +907,7 @@ data S
 
 -- parser for this datatype
 -- sp=RuleA <$> char 'a' Main.<*> sp Main.<*> char 'a'
---   <|> RuleA <$> char 'a' Main.<*> sp Main.<*> char 'a'
+--   <|> RuleB <$> char 'b' Main.<*> sp Main.<*> char 'b'
 --   <|> Main.pure RuleE
 
 -- parse n and then n 'a's
@@ -892,6 +937,7 @@ newtype State s a = State {runState :: s -> (a, s)}
 instance MyFunctor (State s) where
   -- State is not a one parameter function, State s is
   -- fmap :: (a->b) -> State s a -> State s b
+  fmap :: (a -> b) -> State s a -> State s b
   fmap f sa = State fn -- :: s-> (b,s)
     where
       fn s0 = (f a, s1)
@@ -901,9 +947,12 @@ instance MyFunctor (State s) where
 instance MyApplicative (State s)
 
 -- (<*>) :: State s (a->b) -> State s a -> State s b
+-- (<*>) sf sa = State g -- :: State s b
+--   where
+--     g s0 =
 
 instance MyMonad (State s) where
-  -- (>>=) :: State s a -> (a -> State b) -> State s b
+  (>>=) :: State s a -> (a -> State s b) -> State s b
   (>>=) sa fn = State g -- :: State s b
     where
       g s0 = runState (fn a) s1
@@ -914,6 +963,7 @@ instance MyMonad (State s) where
 
 -- get :: State s s
 -- as it gives out the result as the same state whcih it gets
+getstate :: State a a
 getstate = State fn
   where
     fn s0 = (s0, s0)
@@ -923,7 +973,7 @@ getstate = State fn
 -- 2024-04-12 11:10:00
 
 -- Monad transformation
--- StateT s m a where s id the state type, m is the inner monad and a is the value
+-- StateT s m a where s is the state type, m is the inner monad and a is the value
 -- for all monads m, StateT s m is a monad
 
 -- type CalcM = StateT Env IO
@@ -938,21 +988,21 @@ newtype Identity a = Identity {runIdentity :: a}
 
 -- define functor, applicative and monad instnaces for the identity monad
 
--- type State s a = StateT s Identity
+-- type State s a = StateT s (Identity a)
 
 instance (Functor m) => Functor (StateT s m) where
-  -- fmap :: (a->b) -> StateT s m a -> StateT s m b
+  fmap :: (Functor m) => (a -> b) -> StateT s m a -> StateT s m b
   fmap f sma = StateT fn
     where
       fn s0 = Prelude.fmap (\(a, s) -> (f a, s)) (runStateT sma s0)
 
 instance (Monad m) => Applicative (StateT s m) where
-  -- pure :: a -> StateT s m a
+  pure :: (Monad m) => a -> StateT s m a
   pure a = StateT fn
     where
       fn s0 = Prelude.pure (a, s0)
 
-  -- (<*>) :: StateT s m (a->b) -> StateT s m a -> StateT s m b
+  (<*>) :: (Monad m) => StateT s m (a -> b) -> StateT s m a -> StateT s m b
   (<*>) smf sma = StateT fn
     where
       fn s0 =
@@ -962,7 +1012,7 @@ instance (Monad m) => Applicative (StateT s m) where
           return (f a, s2)
 
 instance (Monad m) => Monad (StateT s m) where
-  -- (>>=) :: StateT s m a -> (a -> StateT s m b) -> StateT s m b
+  (>>=) :: (Monad m) => StateT s m a -> (a -> StateT s m b) -> StateT s m b
   (>>=) sma f = StateT fn
     where
       fn s0 =
@@ -987,7 +1037,7 @@ instance (Monad m) => Monad (StateT s m) where
 
 -- module is a collection of name-value bindings
 
--- cannot have nultiple modules in a single file
+-- cannot have multiple modules in a single file
 -- module names have to start with Uppercase
 
 -- module A (x,y) where
@@ -1040,7 +1090,6 @@ instance (Monad m) => Monad (StateT s m) where
 -- If you want to expose the QString constructor use QString(QString) inside export
 -- for a datatype to expose all constructors use datatypeName (...)
 
-
 --  import Foo.Bar (school of thought which says - never import things like this.
 --                  plausible that same name different meanings. context dependent name )
 --
@@ -1048,7 +1097,7 @@ instance (Monad m) => Monad (StateT s m) where
 -- -------
 -- Data.List.singleton :: a -> [a]
 -- Data.Set.singleton :: a -> Set a
--- ambiguity in which singleton is being used in a program 
+-- ambiguity in which singleton is being used in a program
 --
 --  import Foo.Bar ( <import list> )  <-- Further restriction from Foo.Bar's export list
 --                              <-- only whatever has been exported can be imported
@@ -1063,16 +1112,14 @@ instance (Monad m) => Monad (StateT s m) where
 --
 --
 
-
 -- main :: IO ()
 -- main = putStrLn "Hello, Haskell!"
 
-
 -- Watch the Matrix movie or you get a U grade
--- Watch Matrix 2 or 3 then you get a U grade again. 
+-- Watch Matrix 2 or 3 then you get a U grade again.
 
---module Foo (x) where
---  import Bar      -> (Bar.x) (Bar.y) are present 
+-- module Foo (x) where
+--  import Bar      -> (Bar.x) (Bar.y) are present
 --
 --
 --
@@ -1093,28 +1140,28 @@ instance (Monad m) => Monad (StateT s m) where
 
 -- 2024-04-22 10:52:05
 
--- interaction of modules with type classes 
+-- interaction of modules with type classes
 -- Module is about locality
 -- Type classes want to globalize
 
--- Type class coherence problem 
+-- Type class coherence problem
 
 -- Type class instances should be global for coherence but bindings have to be local. The two of them are conflicting in nature.
 
 -- Suppose Modules are allowed to control exposure of type classes then it will result in incoherence
 
 -- module A (foo)
---   instance Ord int 
+--   instance Ord int
 --   foo x y = x <= y
 --   bar = foo 2 3
 
--- module B 
+-- module B
 --   A.foo 2 3
 
--- in B the local instance of Ord will be used and could lose coherence 
+-- in B the local instance of Ord will be used and could lose coherence
 
--- Orphan instances: an instance is not orphan if the instance is defined in either the type class is defined or where the type is defined. 
--- All other instances are orphan instances. 
+-- Orphan instances: an instance is not orphan if the instance is defined in either the type class is defined or where the type is defined.
+-- All other instances are orphan instances.
 
 -- Orphan instances leads to coherence problems at runtime and compiler warns about it
 -- There are some instances when you don't have control over the libraries and have to import it and write an orphan instance
